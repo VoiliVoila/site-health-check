@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Votre site est-il en bonne santé ? — La Jetée</title>
+<meta name="description" content="Testez gratuitement les 17 fondamentaux de votre site : sécurité, entretien, visibilité, performance. En direct, sans installation.">
+<meta name="robots" content="index, follow">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header class="entete">
+  <a class="marque" href="https://lajetee.fr">La Jetée</a>
+  <span class="marque-suite">là où on vous repère</span>
+</header>
+
+<main>
+  <section class="hero">
+    <h1>Le check santé de votre site</h1>
+    <p class="chapo">
+      Dix-sept points fondamentaux, vérifiés en direct sur votre site :
+      sécurité, entretien, visibilité, performance. Sans installation,
+      sans accès à votre site. Le résultat est à vous, que vous corrigiez
+      vous-même ou non.
+    </p>
+
+    <form id="form" class="lancement" novalidate>
+      <label class="visuellement-cache" for="url">Adresse de votre site</label>
+      <input id="url" name="url" type="text" inputmode="url" autocomplete="url"
+             placeholder="lechaudronbreton.fr" required>
+      <button type="submit" id="lancer">Lancer le test</button>
+    </form>
+    <p class="erreur" id="erreur" hidden></p>
+    <p class="mention">Aucune donnée n'est modifiée sur votre site. Nous le consultons comme un visiteur.</p>
+  </section>
+
+  <section id="resultats" hidden aria-live="polite">
+    <div class="site-teste">
+      <span class="pastille"></span>
+      <span id="site-url"></span>
+      <span class="badge-wp" id="badge-wp" hidden>WordPress</span>
+    </div>
+
+    <div id="piliers" class="piliers"></div>
+
+    <!-- Lock: remaining pillars analysed, detail hidden until email -->
+    <div id="verrou" class="verrou" hidden>
+      <h2>Votre rapport complet est prêt</h2>
+      <p>
+        L'analyse est terminée. Indiquez votre e-mail pour découvrir le détail
+        des trois derniers piliers, votre score global, et recevoir le rapport
+        écrit avec la marche à suivre pour chaque point.
+      </p>
+      <form id="form-email" novalidate>
+        <label class="visuellement-cache" for="email">Votre e-mail</label>
+        <input id="email" type="email" autocomplete="email" placeholder="vous@votre-site.fr" required>
+        <button type="submit" id="deverrouiller">Voir les résultats</button>
+        <label class="consentement">
+          <input type="checkbox" id="consent" required>
+          <span>J'accepte de recevoir mon rapport par e-mail. Pas de newsletter, jamais transmis à un tiers&nbsp;: <a href="https://lajetee.fr/politique-de-confidentialite">politique de confidentialité</a>.</span>
+        </label>
+      </form>
+      <p class="erreur" id="erreur-email" hidden></p>
+    </div>
+
+    <div id="global" class="global" hidden>
+      <div class="global-score"><span id="global-valeur">—</span><small>/100</small></div>
+      <div class="global-texte">
+        <h2>Votre score global</h2>
+        <p id="global-phrase"></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="pied">
+  <p>
+    Un outil de <a href="https://lajetee.fr">La Jetée</a> — création et optimisation
+    de sites internet, Morbihan. Ce test est gratuit et le restera.
+  </p>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
