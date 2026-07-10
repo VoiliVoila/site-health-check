@@ -10,7 +10,8 @@ Built as a lead magnet: the first pillars are shown for free, the full report is
 unlocked with an email. The UI is in French (its intended audience); the code
 and documentation are in English.
 
-> **Status:** production-ready. Deployed at `check.lajetee.fr`.
+> **Status:** production-ready. Designed to run on its own (sub)domain
+> (e.g. `audit.lajetee.fr`).
 
 ## What it checks
 
