@@ -1,0 +1,5 @@
+# Only the entry points are callable.
+# lib.php, checks.php and ratelimit.php are internal includes.
+<FilesMatch "^(lib|checks|ratelimit)\.php$">
+    Require all denied
+</FilesMatch>
