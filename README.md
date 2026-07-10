@@ -1,6 +1,6 @@
 # Site Health Check
 
-A public, no-signup tool that checks the **17 fundamentals** of a website —
+A public, no-signup tool that checks the **16+ fundamentals** of a website —
 security, maintenance, visibility, performance — from the outside, without any
 access to the site being tested. It runs each check live and reports every
 finding as a plain-language consequence and a concrete next step, never a raw
