@@ -235,7 +235,13 @@ $('#form-email').addEventListener('submit', async (e) => {
 
   $('#deverrouiller').disabled = true;
   try {
-    await post('lead.php', { email, url: etat.url, consent });
+    const resultats = etat.piliers.map((p) => ({
+      id: p.id, titre: p.titre, score: p.score,
+      indicateurs: p.indicateurs.map((i) => ({
+        id: i.id, label: i.label, status: i.status, verdict: i.verdict,
+      })),
+    }));
+    await post('lead.php', { email, url: etat.url, consent, resultats, score: scoreGlobal() });
     etat.deverrouille = true;
 
     // Reveal WITHOUT re-rendering, so the un-blur animates (CSS transition),
