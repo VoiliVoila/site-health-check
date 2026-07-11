@@ -187,18 +187,18 @@ function pillar_securite(array $home, string $origin, bool $isWp): array
     $nProt = count($present);
 
     if ($nProt >= 4) {
-        $out[] = ind('protections', 'Protection navigateur', 'ok',
+        $out[] = ind('protections', 'Sécurité navigation', 'ok',
             "Toutes les protections que les navigateurs offrent gratuitement sont activées. C'est le réglage des sites bien tenus.",
             '', ['detail' => ['present' => $present]]
         );
     } elseif ($nProt >= 2) {
-        $out[] = ind('protections', 'Protection navigateur', 'warn',
+        $out[] = ind('protections', 'Sécurité navigation', 'warn',
             "Une partie des protections navigateur sont en place, mais il en manque. Ce n'est pas une faille — c'est un réglage rapide que les sites soignés complètent.",
             "Ajouter les en-têtes de sécurité manquants — quelques lignes côté serveur, ou une case à activer dans Cloudflare.",
             ['detail' => ['present' => $present]]
         );
     } else {
-        $out[] = ind('protections', 'Protection navigateur', 'fail',
+        $out[] = ind('protections', 'Sécurité navigation', 'fail',
             "Votre site n'active pas les protections que les navigateurs offrent gratuitement (contre le détournement de votre site dans une autre page, ou le retour en connexion non sécurisée). Ce n'est pas une faille ouverte, mais c'est le genre de réglage qui manque quand personne ne s'occupe du site.",
             "Ajouter les en-têtes de sécurité — quelques lignes côté serveur, ou une case à activer dans Cloudflare.",
             ['detail' => ['present' => $present]]
@@ -218,29 +218,7 @@ function pillar_entretien(array $home, string $origin, bool $isWp): array
     $html = $home['body'];
     $xp   = dom_of($html);
 
-    // --- 1. Server response time ---
-    $ttfb = $home['ttfb'];
-    $ms   = (int) round($ttfb * 1000);
-    if ($ttfb > 1.2) {
-        $out[] = ind('reponse', 'Temps de réponse', 'fail',
-            "Votre hébergement met {$ms} millisecondes à répondre, avant même de commencer à afficher quoi que ce soit. Au-delà d'une seconde, les visiteurs mobiles abandonnent.",
-            "C'est presque toujours l'hébergement ou l'absence de cache. Un cache bien réglé divise ce chiffre par cinq.",
-            ['detail' => ['ttfb_ms' => $ms]]
-        );
-    } elseif ($ttfb > 0.6) {
-        $out[] = ind('reponse', 'Temps de réponse', 'warn',
-            "Votre serveur répond en {$ms} millisecondes. C'est honnête, sans plus.",
-            "Activer un cache de pages ferait descendre ce chiffre nettement.",
-            ['detail' => ['ttfb_ms' => $ms]]
-        );
-    } else {
-        $out[] = ind('reponse', 'Temps de réponse', 'ok',
-            "Votre serveur répond en {$ms} millisecondes. C'est rapide.", '',
-            ['detail' => ['ttfb_ms' => $ms]]
-        );
-    }
-
-    // --- 2. Broken links and images ---
+    // --- 1. Broken links and images ---
     $soft = soft_404_baseline($origin);
     if (!$xp || $soft) {
         $out[] = ind('casses', 'Liens et images', 'na',
@@ -297,49 +275,176 @@ function pillar_entretien(array $home, string $origin, bool $isWp): array
         }
     }
 
-    // --- 3. Admin scripts served to the public (WordPress) ---
-    if (!$isWp) {
-        $out[] = ind('scripts_admin', "Scripts d'administration", 'na',
-            "Cet indicateur ne concerne que les sites WordPress.");
-    } else {
+    // --- 3. Obsolete or admin scripts served to the public ---
+    $problemes_scripts = [];
+
+    // WordPress editor scripts (Gutenberg) served to visitors
+    if ($isWp) {
         $editeur = ['block-editor.min.js', 'wp-block-editor', 'blocks.min.js', 'rich-text.min.js', 'components.min.js'];
         $vus = array_values(array_filter($editeur, fn($s) => stripos($html, $s) !== false));
-
         if (count($vus) >= 2) {
-            $out[] = ind('scripts_admin', "Scripts d'administration", 'fail',
-                "Votre site envoie l'éditeur WordPress à chacun de vos visiteurs — près d'un mégaoctet de code dont ils n'ont aucun usage. C'est du temps de chargement pur perdu.",
-                "Un plugin ou le thème charge ses fichiers d'édition sur le site public. Il faut les réserver à l'administration.",
-                ['detail' => ['scripts' => $vus]]
-            );
-        } else {
-            $out[] = ind('scripts_admin', "Scripts d'administration", 'ok',
-                "Votre site ne charge pas de code d'administration inutile pour vos visiteurs.");
+            $problemes_scripts[] = ['type' => 'admin', 'detail' => "l'éditeur WordPress (≈ 1 Mo de code inutile)"];
         }
     }
 
-    // --- 4. Frozen footer year ---
+    // Outdated JS libraries (any site)
+    if (preg_match('~jquery[./\-](\d+)\.(\d+)\.(\d+)~i', $html, $jq)) {
+        $jqMajor = (int) $jq[1];
+        $jqMinor = (int) $jq[2];
+        if ($jqMajor < 3 || ($jqMajor === 3 && $jqMinor < 6)) {
+            $jqVer = "{$jq[1]}.{$jq[2]}.{$jq[3]}";
+            $problemes_scripts[] = ['type' => 'obsolete', 'detail' => "jQuery {$jqVer} (dernière version stable : 3.7)"];
+        }
+    }
+    if (preg_match('~bootstrap[./\-](\d+)\.(\d+)~i', $html, $bs)) {
+        if ((int) $bs[1] < 5) {
+            $problemes_scripts[] = ['type' => 'obsolete', 'detail' => "Bootstrap {$bs[1]}.{$bs[2]} (version actuelle : 5.x)"];
+        }
+    }
+
+    if ($problemes_scripts) {
+        $liste = implode(' ; ', array_column($problemes_scripts, 'detail'));
+        $hasAdmin = in_array('admin', array_column($problemes_scripts, 'type'));
+        $hasObsolete = in_array('obsolete', array_column($problemes_scripts, 'type'));
+        $label = 'Code à jour';
+        $out[] = ind('scripts', $label, count($problemes_scripts) > 1 ? 'fail' : 'warn',
+            "Votre site charge du code qui n'a rien à faire là : {$liste}. C'est du poids mort qui ralentit le site et signale un manque d'entretien.",
+            "Mettre à jour les bibliothèques anciennes et réserver le code d'administration au back-office.",
+            ['detail' => $problemes_scripts]
+        );
+    } else {
+        $out[] = ind('scripts', 'Code à jour', 'ok',
+            "Votre site ne charge pas de code obsolète ou d'administration inutile.");
+    }
+
+    // --- 4. Last update signal ---
+    $courante = (int) date('Y');
+    $signaux = [];
+
+    // Try sitemap lastmod (handles both <urlset> and <sitemapindex>)
+    $sitemapUrl = $origin . '/sitemap.xml';
+    $sm = http_fetch($sitemapUrl, ['follow' => true, 'max' => 100_000, 'timeout' => 5]);
+    if ($sm['status'] === 200 && (stripos($sm['body'], '<urlset') !== false || stripos($sm['body'], '<sitemapindex') !== false)) {
+        if (preg_match_all('~<lastmod>(\d{4})-?(\d{2})?~', $sm['body'], $dates)) {
+            $years = array_map('intval', $dates[1]);
+            $maxYear = max($years);
+            $signaux[] = ['source' => 'sitemap', 'year' => $maxYear];
+        }
+    }
+
+    // Try RSS feed
+    $rssDate = null;
+    if ($xp) {
+        $rssLink = null;
+        foreach ($xp->query('//link[@type="application/rss+xml"]/@href') ?: [] as $n) {
+            $rssLink = absolutize($n->nodeValue, $home['url']);
+            break;
+        }
+        if ($rssLink) {
+            $rss = http_fetch($rssLink, ['follow' => true, 'max' => 50_000, 'timeout' => 5]);
+            if ($rss['status'] === 200) {
+                if (preg_match_all('~<pubDate>([^<]+)</pubDate>~i', $rss['body'], $rdates)) {
+                    $timestamps = array_filter(array_map('strtotime', $rdates[1]));
+                    if ($timestamps) {
+                        $latest = max($timestamps);
+                        $rssYear = (int) date('Y', $latest);
+                        $rssDate = ['year' => $rssYear, 'timestamp' => $latest];
+                        $signaux[] = ['source' => 'rss', 'year' => $rssYear];
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback: footer year
+    $footerYear = null;
     $pied = substr($html, -4000);
     if (preg_match_all('~(?:©|&copy;|copyright)\s*(?:-|–)?\s*((?:19|20)\d{2})~i', $pied, $m)) {
-        $annees  = array_map('intval', $m[1]);
-        $recente = max($annees);
-        $courante = (int) date('Y');
+        $annees = array_map('intval', $m[1]);
+        $footerYear = max($annees);
+        $signaux[] = ['source' => 'footer', 'year' => $footerYear];
+    }
 
-        if ($recente < $courante - 1) {
-            $ecart = $courante - $recente;
-            $out[] = ind('pied', 'Pied de page', 'warn',
-                "Le pied de page de votre site affiche encore « © {$recente} ». Un visiteur en déduit que le site est à l'abandon depuis {$ecart} ans.",
-                "Remplacer l'année en dur par une année automatique — c'est cinq minutes.",
-                ['detail' => ['annee' => $recente]]
+    // Pick the best signal.
+    // Sitemap lastmod = strong (reflects actual page updates).
+    // Footer year     = moderate (someone touched the template).
+    // RSS pubDate     = weak (only blog activity — many active sites don't blog).
+    // RSS alone is never enough to conclude abandonment.
+    $bestYear = null;
+    $bestSource = null;
+    $hasStrongSignal = false;
+    foreach ($signaux as $s) {
+        if ($bestYear === null || $s['year'] > $bestYear) {
+            $bestYear = $s['year'];
+            $bestSource = $s['source'];
+        }
+        if ($s['source'] !== 'rss') {
+            $hasStrongSignal = true;
+        }
+    }
+
+    if ($bestYear === null) {
+        $out[] = ind('maj', 'Dernière mise à jour', 'na',
+            "Impossible de déterminer la date de dernière mise à jour de ce site.");
+    } elseif ($bestYear >= $courante - 1) {
+        $out[] = ind('maj', 'Dernière mise à jour', 'ok',
+            "Le site montre des signes d'activité récente.",
+            '', ['detail' => $signaux]
+        );
+    } elseif (!$hasStrongSignal) {
+        $out[] = ind('maj', 'Dernière mise à jour', 'na',
+            "Le dernier article du blog date de {$bestYear}, mais cela ne veut pas dire que le site est abandonné — beaucoup de sites actifs ne publient pas d'articles.",
+            '', ['detail' => $signaux]
+        );
+    } else {
+        $ecart = $courante - $bestYear;
+        $sourceTexte = match($bestSource) {
+            'sitemap' => 'Le sitemap',
+            'footer'  => 'Le pied de page',
+            default   => 'Le site',
+        };
+        $out[] = ind('maj', 'Dernière mise à jour', $ecart >= 3 ? 'fail' : 'warn',
+            "{$sourceTexte} indique {$bestYear} comme trace d'activité la plus récente. Un visiteur en déduit que le site est à l'abandon depuis {$ecart} ans.",
+            "Publier du contenu régulièrement, même une actualité par trimestre, montre que quelqu'un s'occupe du site.",
+            ['detail' => $signaux]
+        );
+    }
+
+    // --- 5. Mixed content (http:// resources on an https page) ---
+    $isHttps = str_starts_with($home['url'], 'https://');
+    if (!$isHttps) {
+        $out[] = ind('mixte', 'Contenu mixte', 'na',
+            "Ce site n'est pas en HTTPS — le contenu mixte ne s'applique pas.");
+    } elseif ($xp) {
+        $mixtes = [];
+        $checkMixed = function ($nodes, string $attr) use (&$mixtes, $origin) {
+            foreach ($nodes ?: [] as $n) {
+                $val = trim($n->nodeValue);
+                if (str_starts_with($val, 'http://') && !str_starts_with($val, 'http://localhost')) {
+                    $mixtes[] = $val;
+                }
+            }
+        };
+        $checkMixed($xp->query('//img/@src'), 'src');
+        $checkMixed($xp->query('//script/@src'), 'src');
+        $checkMixed($xp->query('//link[@rel="stylesheet"]/@href'), 'href');
+        $checkMixed($xp->query('//iframe/@src'), 'src');
+        $mixtes = array_unique(array_slice($mixtes, 0, 10));
+
+        if ($mixtes) {
+            $n = count($mixtes);
+            $out[] = ind('mixte', 'Contenu mixte', 'warn',
+                "Votre site est en HTTPS, mais {$n} ressource" . ($n > 1 ? 's sont chargées' : ' est chargée') . " en HTTP non sécurisé. Le cadenas peut disparaître, et certains navigateurs bloquent ces éléments.",
+                "Remplacer les adresses http:// par https:// dans le contenu du site.",
+                ['detail' => $mixtes]
             );
         } else {
-            $out[] = ind('pied', 'Pied de page', 'ok',
-                "L'année affichée en pied de page est à jour.",
-                '', ['detail' => ['annee' => $recente]]
-            );
+            $out[] = ind('mixte', 'Contenu mixte', 'ok',
+                "Toutes les ressources de la page sont chargées en HTTPS. Pas de contenu mixte.");
         }
     } else {
-        $out[] = ind('pied', 'Pied de page', 'na',
-            "Aucune mention d'année en pied de page — rien à signaler.");
+        $out[] = ind('mixte', 'Contenu mixte', 'na',
+            "Impossible d'analyser le contenu de cette page.");
     }
 
     return $out;
