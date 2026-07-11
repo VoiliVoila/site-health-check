@@ -11,7 +11,9 @@
 <body>
 
 <header class="entete">
-  <a class="marque" href="https://lajetee.fr">La Jetée</a>
+  <a class="marque" href="https://lajetee.fr" aria-label="La Jetée — accueil">
+    <img src="assets/lajetee-logo.svg" alt="La Jetée" class="logo" width="152" height="40">
+  </a>
   <span class="marque-suite">là où on vous repère</span>
 </header>
 
@@ -46,19 +48,18 @@
 
     <!-- Lock: remaining pillars analysed, detail hidden until email -->
     <div id="verrou" class="verrou" hidden>
-      <h2>Votre rapport complet est prêt</h2>
+      <h2>Votre bilan complet est prêt</h2>
       <p>
-        L'analyse est terminée. Indiquez votre e-mail pour découvrir le détail
-        des trois derniers piliers, votre score global, et recevoir le rapport
-        écrit avec la marche à suivre pour chaque point.
+        L'analyse est terminée. Indiquez votre e-mail pour afficher, ici même,
+        le détail des trois derniers piliers et votre score global.
       </p>
       <form id="form-email" novalidate>
         <label class="visuellement-cache" for="email">Votre e-mail</label>
         <input id="email" type="email" autocomplete="email" placeholder="vous@votre-site.fr" required>
-        <button type="submit" id="deverrouiller">Voir les résultats</button>
+        <button type="submit" id="deverrouiller">Afficher mon bilan complet</button>
         <label class="consentement">
           <input type="checkbox" id="consent" required>
-          <span>J'accepte de recevoir mon rapport par e-mail. Pas de newsletter, jamais transmis à un tiers&nbsp;: <a href="https://lajetee.fr/politique-de-confidentialite">politique de confidentialité</a>.</span>
+          <span>J'accepte que La Jetée me recontacte au sujet de ce bilan. Pas de newsletter, jamais transmis à un tiers&nbsp;: <a href="https://lajetee.fr/politique-de-confidentialite">politique de confidentialité</a>.</span>
         </label>
       </form>
       <p class="erreur" id="erreur-email" hidden></p>

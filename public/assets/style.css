@@ -65,6 +65,10 @@ body {
   background: var(--blanc-casse);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  /* Sticky footer: header + main + footer fill the viewport, footer at bottom */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 h1, h2, h3 { font-family: var(--font-titre); color: var(--bleu-jetee); font-weight: 600; line-height: 1.2; }
@@ -78,18 +82,16 @@ a { color: var(--bleu-horizon); }
 
 /* --- Header --- */
 .entete {
-  display: flex; align-items: baseline; gap: 12px;
-  padding: 20px 24px;
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 24px;
   border-bottom: 1px solid rgba(23, 59, 71, .10);
 }
-.marque {
-  font-family: var(--font-titre); font-size: 20px; font-weight: 600;
-  color: var(--bleu-jetee); text-decoration: none;
-}
+.marque { display: inline-flex; text-decoration: none; }
+.logo { height: 38px; width: auto; display: block; }
 .marque-suite { font-size: 13px; color: var(--gris-doux); }
 
 /* --- Hero --- */
-main { max-width: 780px; margin: 0 auto; padding: 0 24px 80px; }
+main { flex: 1 0 auto; width: 100%; max-width: 780px; margin: 0 auto; padding: 0 24px 80px; }
 
 .hero { padding: 56px 0 40px; }
 .hero h1 { font-size: clamp(30px, 5vw, 44px); margin: 0 0 20px; }
@@ -169,6 +171,8 @@ button:disabled { opacity: .6; cursor: progress; }
   display: flex; gap: 14px;
   padding: 18px 0;
   border-top: 1px solid rgba(23, 59, 71, .08);
+  /* base transition so removing .pilier-verrouille animates the un-blur */
+  transition: filter .55s ease;
 }
 .indicateur:first-child { border-top: 0; }
 
@@ -217,6 +221,19 @@ button:disabled { opacity: .6; cursor: progress; }
   position: absolute; inset: auto 0 0 0; height: 60%;
   background: linear-gradient(to bottom, transparent, #fff 70%);
   border-radius: 0 0 16px 16px; pointer-events: none;
+  opacity: 1; transition: opacity .5s ease;
+}
+.voile.fondu { opacity: 0; }
+
+/* Reveal payoff: previously-locked pillars flash softly when unlocked */
+@keyframes reveal-flash {
+  0%   { box-shadow: 0 0 0 2px var(--ambre), var(--ombre); }
+  100% { box-shadow: 0 0 0 0 transparent, var(--ombre); }
+}
+.pilier.revele { animation: reveal-flash 1.4s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .indicateur { transition: none; }
+  .pilier.revele { animation: none; }
 }
 
 .verrou {
