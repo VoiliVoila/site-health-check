@@ -246,19 +246,27 @@ function pillar_entretien(array $home, string $origin, bool $isWp): array
         $out[] = ind('casses', 'Liens et images', 'na',
             "Impossible de tester les liens de façon fiable sur ce site.");
     } else {
+        // Cloudflare infra endpoints (email obfuscation, challenges…) are not
+        // content links — skip them, or every Cloudflare site false-flags.
+        $ignore = fn(string $u): bool => strpos($u, '/cdn-cgi/') !== false;
+
         $urls = [];
-        foreach ($xp->query('//a/@href') ?: [] as $n) {
-            $u = absolutize($n->nodeValue, $home['url']);
-            if ($u && str_starts_with($u, $origin)) {
-                $urls[$u] = 'lien';
+        $collect = function ($nodes, string $kind) use (&$urls, $home, $origin, $ignore) {
+            foreach ($nodes ?: [] as $n) {
+                $u = absolutize($n->nodeValue, $home['url']);
+                if (!$u) {
+                    continue;
+                }
+                // Drop the #fragment: it never affects the HTTP response, and
+                // keeping it would count /page#a and /page#b as two links.
+                $u = strtok($u, '#');
+                if (str_starts_with($u, $origin) && !$ignore($u)) {
+                    $urls[$u] ??= $kind;
+                }
             }
-        }
-        foreach ($xp->query('//img/@src') ?: [] as $n) {
-            $u = absolutize($n->nodeValue, $home['url']);
-            if ($u && str_starts_with($u, $origin)) {
-                $urls[$u] = 'image';
-            }
-        }
+        };
+        $collect($xp->query('//a/@href'), 'lien');
+        $collect($xp->query('//img/@src'), 'image');
         unset($urls[rtrim($home['url'], '/')], $urls[$origin], $urls[$origin . '/']);
 
         $urls    = array_slice($urls, 0, 15, true);
