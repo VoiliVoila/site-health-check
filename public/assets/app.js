@@ -208,7 +208,10 @@ $('#form').addEventListener('submit', async (e) => {
 
     attendre(null);
     $('#verrou').hidden = false;
-    $('#verrou').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    // Ease down to the first masked pillar (the teaser), not straight to the
+    // email form — the visitor sees "there's more, blurred" and arrives gently.
+    const premierMasque = document.querySelector('.pilier-verrouille');
+    (premierMasque || $('#verrou')).scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     attendre(null);
     $('#erreur').textContent = err.message;
@@ -225,7 +228,7 @@ $('#form-email').addEventListener('submit', async (e) => {
   $('#erreur-email').hidden = true;
 
   if (!consent) {
-    $('#erreur-email').textContent = 'Merci de cocher la case pour recevoir votre rapport.';
+    $('#erreur-email').textContent = 'Merci de cocher la case pour afficher votre bilan.';
     $('#erreur-email').hidden = false;
     return;
   }
@@ -234,10 +237,22 @@ $('#form-email').addEventListener('submit', async (e) => {
   try {
     await post('lead.php', { email, url: etat.url, consent });
     etat.deverrouille = true;
-    peindre();
+
+    // Reveal WITHOUT re-rendering, so the un-blur animates (CSS transition),
+    // and flash the freshly revealed pillars so the unlock is felt.
+    const revele = [...document.querySelectorAll('.pilier-verrouille')];
+    revele.forEach((el) => {
+      el.classList.remove('pilier-verrouille');
+      el.classList.add('revele');
+      el.querySelector('.voile')?.classList.add('fondu');
+    });
+    setTimeout(() => document.querySelectorAll('.voile').forEach((v) => v.remove()), 550);
+
     $('#verrou').hidden = true;
     afficheGlobal();
-    $('#global').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Move attention UP to the freshly revealed content — fixes "the view
+    // stayed on the email box, I didn't realise everything had appeared".
+    (revele[0] || $('#global')).scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     $('#erreur-email').textContent = err.message;
     $('#erreur-email').hidden = false;
