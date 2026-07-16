@@ -1,2 +1,10 @@
+# Secrets & runtime data
 config.php
 data/
+
+# Local editor / tooling files
+.DS_Store
+.claude/
+.vscode/
+.idea/
+.mcp.json

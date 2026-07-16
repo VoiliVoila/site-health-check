@@ -631,3 +631,141 @@ function pillar_score(array $indicateurs): ?int
     }
     return $n === 0 ? null : (int) round(100 * $somme / $n);
 }
+
+/* ===========================================================
+   PILLAR 4 — PERFORMANCE (shared with pagespeed.php)
+   -----------------------------------------------------------
+   Extracted here so the public client (pagespeed.php) and the
+   private expert report (report.php) run the exact same code.
+   =========================================================== */
+
+/**
+ * The Performance pillar via PageSpeed Insights. Returns the 4 indicators,
+ * each carrying its factual `detail` (raw numbers) alongside the client verdict.
+ * On API failure, returns null so the caller can decide how to degrade.
+ */
+function pillar_performance(string $url, array $config): ?array
+{
+    $query = http_build_query([
+        'url'      => $url,
+        'strategy' => 'mobile',
+        'category' => 'performance',
+        'key'      => $config['pagespeed_key'] ?? '',
+    ]);
+
+    $api = http_fetch(
+        'https://www.googleapis.com/pagespeedonline/v5/runPagespeed?' . $query,
+        ['follow' => true, 'timeout' => 75, 'max' => 6_000_000]
+    );
+
+    if ($api['status'] !== 200) {
+        return null;
+    }
+
+    $data   = json_decode($api['body'], true) ?: [];
+    $lh     = $data['lighthouseResult'] ?? [];
+    $audits = $lh['audits'] ?? [];
+
+    $score = $lh['categories']['performance']['score'] ?? null;
+    $score = $score === null ? null : (int) round($score * 100);
+
+    $lcpMs = $audits['largest-contentful-paint']['numericValue'] ?? null;
+    $poids = $audits['total-byte-weight']['numericValue'] ?? null;
+
+    $gainImages = 0;
+    foreach (['modern-image-formats', 'uses-optimized-images', 'uses-responsive-images'] as $a) {
+        $gainImages += (int) ($audits[$a]['details']['overallSavingsBytes'] ?? 0);
+    }
+
+    $mo = fn(float $octets): string => number_format($octets / 1_048_576, 1, ',', ' ') . ' Mo';
+    $s  = fn(float $ms): string     => number_format($ms / 1000, 1, ',', ' ') . ' s';
+
+    $ind = [];
+
+    // --- 1. Mobile score ---
+    if ($score === null) {
+        $ind[] = ind('score_mobile', 'Score mobile', 'na', "Google n'a pas pu calculer de score.");
+    } else {
+        $st = $score >= 70 ? 'ok' : ($score >= 40 ? 'warn' : 'fail');
+        $ind[] = ind('score_mobile', 'Score mobile', $st,
+            $score >= 70
+                ? "Google note la vitesse de votre site {$score} sur 100 sur mobile. C'est bon."
+                : "Google note la vitesse de votre site {$score} sur 100 sur mobile. Plus de la moitié de vos visiteurs sont sur téléphone.",
+            $score < 40 ? "En dessous de 40, le problème est structurel : c'est le socle du site qu'il faut reprendre, pas quelques réglages." : '',
+            ['valeur' => $score, 'fait' => "{$score}/100 (mobile)"]
+        );
+    }
+
+    // --- 2. LCP ---
+    if ($lcpMs === null) {
+        $ind[] = ind('lcp', "Vitesse d'affichage", 'na', 'Mesure indisponible.');
+    } else {
+        $st = $lcpMs <= 2500 ? 'ok' : ($lcpMs <= 4000 ? 'warn' : 'fail');
+        $ind[] = ind('lcp', "Vitesse d'affichage", $st,
+            "Sur un téléphone, votre contenu principal apparaît au bout de " . $s((float) $lcpMs) . ".",
+            $st === 'ok' ? '' : "Au-delà de 2,5 secondes, un visiteur sur quatre est déjà reparti.",
+            ['valeur' => round($lcpMs / 1000, 1), 'fait' => 'LCP ' . $s((float) $lcpMs)]
+        );
+    }
+
+    // --- 3. Page weight ---
+    if ($poids === null) {
+        $ind[] = ind('poids', 'Poids de la page', 'na', 'Mesure indisponible.');
+    } else {
+        $st = $poids <= 1_600_000 ? 'ok' : ($poids <= 3_500_000 ? 'warn' : 'fail');
+        $ind[] = ind('poids', 'Poids de la page', $st,
+            "Votre page d'accueil pèse " . $mo((float) $poids) . ". C'est ce que chaque visiteur télécharge, souvent en 4G.",
+            $st === 'ok' ? '' : "Une page d'accueil bien tenue reste sous 1,5 Mo.",
+            ['valeur' => round($poids / 1_048_576, 1), 'fait' => $mo((float) $poids)]
+        );
+    }
+
+    // --- 4. Images to compress ---
+    if ($gainImages < 50_000) {
+        $ind[] = ind('images', 'Images à alléger', 'ok',
+            'Vos images sont correctement compressées. Rien à gagner de ce côté.',
+            '', ['fait' => 'gain < 0,1 Mo']);
+    } else {
+        $st = $gainImages > 1_000_000 ? 'fail' : 'warn';
+        $ind[] = ind('images', 'Images à alléger', $st,
+            "Vos images peuvent être allégées de " . $mo((float) $gainImages) . " sans aucune perte visible.",
+            "Compresser les photos et les servir au format WebP. C'est le gain le plus rapide à obtenir sur un site.",
+            ['valeur' => round($gainImages / 1_048_576, 1), 'fait' => 'gain ' . $mo((float) $gainImages)]
+        );
+    }
+
+    return $ind;
+}
+
+/**
+ * Expert-only: best-effort WordPress version sniff.
+ *
+ * Deliberately EXCLUDED from the public client tool (rule 1: what cannot be
+ * measured reliably from outside returns `na`, never a verdict). The version
+ * is often masked by a cache or a security plugin. Surfaced here only for the
+ * private/expert view, always flagged "à confirmer".
+ */
+function wp_version_sniff(array $home, string $origin): array
+{
+    $out = ['version' => null, 'source' => null, 'confiance' => 'à confirmer'];
+    $html = $home['body'];
+
+    // 1. generator meta tag (the cleanest signal when not stripped)
+    if (preg_match('~name="generator"\s+content="WordPress\s+([\d.]+)~i', $html, $m)) {
+        return ['version' => $m[1], 'source' => 'meta generator', 'confiance' => 'à confirmer'];
+    }
+
+    // 2. RSS feed generator (<generator>https://wordpress.org/?v=6.5</generator>)
+    $feed = http_fetch($origin . '/feed/', ['follow' => true, 'max' => 40_000, 'timeout' => 5]);
+    if ($feed['status'] === 200 && preg_match('~wordpress\.org/\?v=([\d.]+)~i', $feed['body'], $m)) {
+        return ['version' => $m[1], 'source' => 'flux RSS', 'confiance' => 'à confirmer'];
+    }
+
+    // 3. readme.html (older installs leave it exposed)
+    $readme = http_fetch($origin . '/readme.html', ['follow' => true, 'max' => 40_000, 'timeout' => 5]);
+    if ($readme['status'] === 200 && preg_match('~Version\s+([\d.]+)~i', $readme['body'], $m)) {
+        return ['version' => $m[1], 'source' => 'readme.html', 'confiance' => 'à confirmer'];
+    }
+
+    return $out;
+}

@@ -12,4 +12,8 @@ return [
     // Notification on each completed test. Leave empty to disable.
     'notify_to'   => 'you@example.com',
     'notify_from' => 'noreply@example.com',
+
+    // Optional token to allow non-loopback callers of the private expert
+    // endpoint (api/expert.php). Leave empty to allow loopback only.
+    'expert_token' => '',
 ];
