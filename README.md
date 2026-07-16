@@ -49,7 +49,9 @@ site-health-check/
 │   ├── index.html       front end
 │   ├── assets/          style.css, app.js
 │   └── api/             scan.php, pagespeed.php, lead.php
+│                        expert.php, report.php   (private expert mode)
 │                        (+ lib / checks / ratelimit internal includes)
+├── audit-cli.php        ← expert report on the command line (JSON)
 ├── config.php           ← ABOVE the web root: API key + notification emails
 └── data/                ← ABOVE the web root: leads.csv + rate-limit store
 ```
@@ -97,6 +99,31 @@ Run the engine from the command line, without the UI:
 ```bash
 docker run --rm -v "$PWD":/app -w /app php:8.3-cli php test-cli.php https://example.com
 ```
+
+## Expert report (private)
+
+The public tool reports each finding as a plain-language consequence. The **same
+engine** can also emit an **expert report** that keeps the raw technical fact
+behind every indicator (certificate issuer and expiry, exact security headers
+missing, title/description lengths, detected CMS/platform, best-effort
+WordPress version…), plus per-pillar and overall scores. One engine, two views:
+change a check once and both follow.
+
+Two ways to obtain it:
+
+```bash
+# Command line → JSON
+docker run --rm -v "$PWD":/app -w /app php:8.3-cli php audit-cli.php https://example.com --perf
+
+# HTTP endpoint (see gating below)
+GET /api/expert.php?url=example.com&perf=1
+```
+
+**It is private by design.** An expert report lists exposed usernames, forgotten
+files and the platform/version of sites that are not yours — effectively a
+checklist for an attacker. `api/expert.php` therefore refuses every request that
+is not either from the loopback interface or carrying a matching `expert_token`
+(from `config.php` or the `EXPERT_TOKEN` env var). Do not expose it publicly.
 
 ## Security of the tool itself
 
