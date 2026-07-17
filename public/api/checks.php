@@ -158,7 +158,7 @@ function pillar_securite(array $home, string $origin, bool $isWp): array
         if ($isForm) {
             $out[] = ind('login', 'Page de connexion', 'warn',
                 "Votre page de connexion est à l'adresse que tout le monde connaît. Les robots la testent en continu, des milliers de fois par mois.",
-                "Ajouter une double authentification, ou limiter les tentatives de connexion. Déplacer l'adresse aide un peu, mais ne suffit pas."
+                "Limiter les tentatives de connexion et ajouter une double authentification. Déplacer l'adresse de connexion est un bon complément — à condition de bloquer l'ancienne, sinon ça ne suffit pas."
             );
         } else {
             $out[] = ind('login', 'Page de connexion', 'ok',
