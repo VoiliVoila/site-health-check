@@ -17,15 +17,45 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib.php';
 
+/**
+ * Correction level per finding — powers the "se corrige en 10 minutes" badge
+ * (the blog article promises the report tells the reader which ones).
+ * facile    = the owner can do it alone, ~10 minutes, no technical skill
+ * technique = needs hosting/code/plugin work — hand it over
+ */
+const NIVEAU_CORRECTION = [
+    'indexable'    => 'facile',     // décocher une case dans WordPress
+    'snippet'      => 'facile',     // écrire titre + description
+    'partage'      => 'facile',     // choisir une image de partage
+    'casses'       => 'facile',     // corriger ou retirer le lien
+    'maj'          => 'facile',     // publier une mise à jour / corriger l'année
+    'images'       => 'facile',     // compresser les photos
+    'cadenas'      => 'technique',
+    'identifiants' => 'technique',
+    'login'        => 'technique',
+    'fichiers'     => 'technique',
+    'protections'  => 'technique',
+    'scripts'      => 'technique',
+    'mixte'        => 'technique',
+    'fiche'        => 'technique',
+    'score_mobile' => 'technique',
+    'lcp'          => 'technique',
+    'poids'        => 'technique',
+];
+
 function ind(string $id, string $label, string $status, string $verdict, string $action = '', array $extra = []): array
 {
-    return array_merge([
+    $base = [
         'id'      => $id,
         'label'   => $label,
         'status'  => $status,   // ok | warn | fail | na
         'verdict' => $verdict,
         'action'  => $action,
-    ], $extra);
+    ];
+    if (($status === 'warn' || $status === 'fail') && isset(NIVEAU_CORRECTION[$id])) {
+        $base['niveau'] = NIVEAU_CORRECTION[$id];
+    }
+    return array_merge($base, $extra);
 }
 
 /** Is the site running WordPress? Gates 3 indicators. */
@@ -559,7 +589,7 @@ function pillar_visibilite(array $home, string $origin): array
     if (!$fiche) {
         $out[] = ind('fiche', 'Fiche établissement', 'fail',
             "Google ne sait pas que vous êtes une entreprise locale, ni où vous vous trouvez. Vous perdez les recherches « près de chez moi » et la fiche à droite des résultats.",
-            "Déclarer votre adresse, votre téléphone et vos horaires dans le code du site — tous les plugins SEO le font."
+            "Déclarer votre adresse, votre téléphone et vos horaires dans le code du site. Certains plugins SEO le proposent en option, sinon c'est un petit travail de code."
         );
     } else {
         $manque = [];
@@ -594,7 +624,7 @@ function pillar_visibilite(array $home, string $origin): array
     if (!$ogImg) {
         $out[] = ind('partage', 'Aperçu au partage', 'fail',
             "Quand quelqu'un partage votre site sur Facebook, WhatsApp ou LinkedIn, il n'y a pas d'image — juste un rectangle gris. Voilà à quoi ressemble votre site quand on vous recommande.",
-            "Choisir une image de partage : une photo de votre établissement, pas votre logo sur fond blanc.",
+            "Choisir une image de partage — c'est un simple champ de votre plugin SEO ou des réglages du site : une photo de votre établissement, pas votre logo sur fond blanc.",
             ['partage' => $partage]
         );
     } elseif (!$ogTitre) {
