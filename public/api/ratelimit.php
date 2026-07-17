@@ -18,6 +18,13 @@ function rate_limit_or_fail(): void
         return; // no storage: do not block the service from running
     }
 
+    // REMOTE_ADDR only, on purpose. Do not "fix" this by falling back to
+    // X-Forwarded-For or CF-Connecting-IP: those headers are set by the caller,
+    // and this origin is reachable directly, so a client could forge a fresh
+    // value on every request and the limit would count to one forever.
+    // Behind a proxy, restore the client IP at the server level (mod_remoteip
+    // or equivalent, trusting the proxy's ranges only) — REMOTE_ADDR is then
+    // already the real visitor and this line needs no change.
     $ip   = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
     $file = $dir . '/' . hash('sha256', $ip) . '.json';
     $now  = time();
