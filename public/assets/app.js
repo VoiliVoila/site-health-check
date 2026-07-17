@@ -92,8 +92,15 @@ function rendCartePartage(p) {
   </div>`;
 }
 
+const NIVEAUX = {
+  facile:    ['niv-facile',    'se corrige en 10 minutes'],
+  technique: ['niv-technique', 'demande une main technique'],
+};
+
 function rendIndicateur(i) {
+  const niv = NIVEAUX[i.niveau];
   const extras = [
+    niv ? `<span class="ind-niveau ${niv[0]}">${niv[1]}</span>` : '',
     i.apercu  ? rendApercuGoogle(i.apercu)  : '',
     i.partage ? rendCartePartage(i.partage) : '',
     i.action  ? `<p class="ind-action">${echappe(i.action)}</p>` : '',
@@ -161,6 +168,7 @@ function afficheGlobal() {
   $('#global-valeur').parentElement.className = `global-score ${CLASSE_SCORE(s)}`;
   $('#global-phrase').textContent = (PHRASES.find(([seuil]) => s >= seuil) || PHRASES.at(-1))[1];
   $('#global').hidden = false;
+  $('#suite').hidden = false;
 }
 
 /* ---------- Flow ---------- */

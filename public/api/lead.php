@@ -180,6 +180,11 @@ function build_visitor_email(string $url, ?int $score, array $piliers): string
     $lines[] = "Vous pouvez relancer le test à tout moment pour mesurer vos progrès :";
     $lines[] = "https://audit.lajetee.fr";
     $lines[] = '';
+    $lines[] = "Les points marqués « se corrige en 10 minutes » sont à votre portée.";
+    $lines[] = "Pour le reste, La Jetée peut s'en charger :";
+    $lines[] = "  • un coup de main ponctuel : https://lajetee.fr/depannage-wordpress/";
+    $lines[] = "  • une maintenance qui veille toute l'année : https://lajetee.fr/maintenance-site-wordpress/";
+    $lines[] = '';
     $lines[] = "Si vous avez des questions sur votre bilan, répondez simplement à cet e-mail.";
     $lines[] = '';
     $lines[] = "À bientôt,";

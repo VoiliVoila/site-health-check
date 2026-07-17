@@ -188,6 +188,22 @@ button:disabled { opacity: .6; cursor: progress; }
 }
 .ind-na .ind-label, .ind-na .ind-verdict { color: var(--gris-doux); }
 
+.ind-niveau {
+  display: inline-block; margin: 8px 0 0; padding: 3px 11px;
+  border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  background: var(--sable);
+}
+.niv-facile    { color: var(--bleu-jetee); border: 1px solid var(--ambre); }
+.niv-technique { color: var(--gris-doux);  border: 1px solid rgba(23, 59, 71, .18); }
+
+.suite {
+  margin-top: 18px; padding: 20px 24px;
+  background: var(--blanc-casse); border-radius: var(--radius); box-shadow: var(--ombre);
+}
+.suite h2 { font-family: var(--font-titre); font-weight: 500; font-size: 22px; margin: 0 0 8px; }
+.suite p  { margin: 0; color: var(--encre); line-height: 1.55; }
+.suite a  { color: var(--terracotta-f); }
+
 /* --- Google preview --- */
 .apercu {
   margin-top: 14px; padding: 16px; border-radius: 10px;
