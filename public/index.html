@@ -7,22 +7,68 @@
 <meta name="description" content="Testez gratuitement les 17 fondamentaux de votre site : sécurité, entretien, visibilité, performance. En direct, sans installation.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://audit.lajetee.fr/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="La Jetée">
+<meta property="og:title" content="Le bilan de santé de votre site — La Jetée">
+<meta property="og:description" content="Testez gratuitement les 17 fondamentaux de votre site : sécurité, entretien, visibilité, performance.">
+<meta property="og:url" content="https://audit.lajetee.fr/">
+<meta property="og:image" content="https://audit.lajetee.fr/assets/og-audit-lajetee-1200x630.png">
+<meta property="og:image:secure_url" content="https://audit.lajetee.fr/assets/og-audit-lajetee-1200x630.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Le bilan de santé de votre site : aperçu de trois cartes de résultats d'audit.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Le bilan de santé de votre site — La Jetée">
+<meta name="twitter:description" content="Testez gratuitement les 17 fondamentaux de votre site.">
+<meta name="twitter:image" content="https://audit.lajetee.fr/assets/og-audit-lajetee-1200x630.png">
+<meta name="twitter:image:alt" content="Le bilan de santé de votre site : aperçu de trois cartes de résultats d'audit.">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
-  "@type": "WebApplication",
-  "name": "Bilan de santé de votre site",
-  "url": "https://audit.lajetee.fr/",
-  "description": "Testez gratuitement les 17 fondamentaux de votre site : sécurité, entretien, visibilité, performance.",
-  "applicationCategory": "BusinessApplication",
-  "operatingSystem": "All",
-  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
-  "creator": {
-    "@type": "LocalBusiness",
-    "name": "La Jetée",
-    "url": "https://lajetee.fr/"
-  }
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "@id": "https://audit.lajetee.fr/#webapp",
+      "name": "Bilan de santé de votre site",
+      "url": "https://audit.lajetee.fr/",
+      "description": "Testez gratuitement les 17 fondamentaux de votre site : sécurité, entretien, visibilité, performance.",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "All",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "publisher": { "@id": "https://lajetee.fr/#organization" },
+      "creator": { "@id": "https://lajetee.fr/#organization" }
+    },
+    {
+      "@type": ["Organization", "LocalBusiness"],
+      "@id": "https://lajetee.fr/#organization",
+      "name": "La Jetée",
+      "url": "https://lajetee.fr/",
+      "description": "Création de sites internet pour artisans, indépendants et petites entreprises dans le Morbihan.",
+      "email": "contact@lajetee.fr",
+      "telephone": "+33 6 95 12 63 08",
+      "address": {
+        "@type": "PostalAddress",
+        "addressRegion": "Bretagne",
+        "addressCountry": "FR"
+      },
+      "areaServed": [
+        { "@type": "AdministrativeArea", "name": "Morbihan" },
+        { "@type": "City", "name": "Vannes" },
+        { "@type": "City", "name": "Auray" },
+        { "@type": "City", "name": "Lorient" }
+      ],
+      "priceRange": "€€",
+      "openingHoursSpecification": [{
+        "@type": "OpeningHoursSpecification",
+        "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+        "opens": "09:00",
+        "closes": "19:00"
+      }],
+      "sameAs": ["https://share.google/eKx6CMHHysX2cJZi1"]
+    }
+  ]
 }
 </script>
 <link rel="stylesheet" href="assets/style.css">
@@ -152,6 +198,7 @@
   <p>
     Un outil de <a href="https://lajetee.fr">La Jetée</a> — création et optimisation
     de sites internet, Morbihan. Ce test est gratuit et le restera.
+    <a href="https://lajetee.fr/politique-de-confidentialite/">Politique de confidentialité</a>.
   </p>
 </footer>
 
