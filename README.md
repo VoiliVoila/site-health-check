@@ -84,6 +84,17 @@ almost immediately and that pillar degrades gracefully to "unavailable".
 
 That's it. `config.php` and `data/` are gitignored and never leave your server.
 
+### PageSpeed key — production boundary
+
+The production key is named `pagespeed-site-health-check` in Google Cloud. It is
+used **only** here, in the server-side `config.php` above the web root; never copy it
+to a local repository, browser code, or a command line. The local SEO audit uses its
+own distinct key in the macOS Keychain (`pagespeed-local-seo`).
+
+To rotate the production key: rotate `pagespeed-site-health-check` in Google Cloud,
+replace `pagespeed_key` in the deployed `config.php`, test the public Performance
+pillar, then delete the previous key. Do not use the local key as a fallback.
+
 ### Local development
 
 PHP's built-in server is enough (here via Docker):

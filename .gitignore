@@ -5,6 +5,7 @@ data/
 # Local editor / tooling files
 .DS_Store
 .claude/
+.agents/
 .vscode/
 .idea/
 .mcp.json
