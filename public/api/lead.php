@@ -90,27 +90,19 @@ if (!empty($resultats)) {
 if (!empty($config['notify_to'])) {
     $body = build_internal_email($url, $email, $score, $resultats);
     $subject = utf8_subject('Check santé — ' . ($score !== null ? "{$score}/100" : 'nouveau test') . ' : ' . $url);
-    @mail(
-        $config['notify_to'],
-        $subject,
-        $body,
-        "From: {$config['notify_from']}\r\nContent-Type: text/plain; charset=utf-8"
-    );
+    send_application_email($config, $config['notify_to'], $subject, $body);
 }
 
 /* ---- 4. Visitor recap email ---- */
 
 if (!empty($config['notify_from'])) {
     $visitorBody = build_visitor_email($url, $score, $resultats);
-    @mail(
+    send_application_email(
+        $config,
         $email,
         utf8_subject("Votre bilan de santé : {$url}"),
         $visitorBody,
-        implode("\r\n", [
-            'From: ' . utf8_subject('La Jetée') . " <{$config['notify_from']}>",
-            'Content-Type: text/plain; charset=utf-8',
-            'Reply-To: ' . ($config['notify_to'] ?? $config['notify_from']),
-        ])
+        $config['notify_to'] ?? $config['notify_from']
     );
 }
 
@@ -119,6 +111,98 @@ json_out(['ok' => true]);
 function utf8_subject(string $s): string
 {
     return '=?UTF-8?B?' . base64_encode($s) . '?=';
+}
+
+/** Send application mail through the configured SMTP relay. */
+function send_application_email(array $config, string $to, string $subject, string $body, ?string $replyTo = null): bool
+{
+    $from = trim((string) ($config['notify_from'] ?? ''));
+    $host = trim((string) ($config['smtp_host'] ?? 'mail.infomaniak.com'));
+    $port = (int) ($config['smtp_port'] ?? 587);
+    $user = trim((string) ($config['smtp_user'] ?? $from));
+    $pass = (string) ($config['smtp_password'] ?? '');
+
+    if ($from === '' || $user === '' || $pass === '') {
+        error_log('Audit SMTP is not configured');
+        return false;
+    }
+
+    $socket = @stream_socket_client(
+        "tcp://{$host}:{$port}",
+        $errno,
+        $errstr,
+        15,
+        STREAM_CLIENT_CONNECT
+    );
+    if (!$socket) {
+        error_log("Audit SMTP connection failed ({$errno}): {$errstr}");
+        return false;
+    }
+    stream_set_timeout($socket, 15);
+
+    try {
+        smtp_expect($socket, 220);
+        smtp_command($socket, 'EHLO audit.lajetee.fr', 250);
+        smtp_command($socket, 'STARTTLS', 220);
+        if (!@stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+            throw new RuntimeException('TLS negotiation failed');
+        }
+        smtp_command($socket, 'EHLO audit.lajetee.fr', 250);
+        smtp_command($socket, 'AUTH LOGIN', 334);
+        smtp_command($socket, base64_encode($user), 334);
+        smtp_command($socket, base64_encode($pass), 235);
+        smtp_command($socket, "MAIL FROM:<{$from}>", 250);
+        smtp_command($socket, "RCPT TO:<{$to}>", 250);
+        smtp_command($socket, 'DATA', 354);
+
+        $headers = [
+            "From: La Jetée <{$from}>",
+            "To: {$to}",
+            "Subject: {$subject}",
+            'Date: ' . date(DATE_RFC2822),
+            'Message-ID: <' . bin2hex(random_bytes(12)) . '@audit.lajetee.fr>',
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset=UTF-8',
+            'Content-Transfer-Encoding: 8bit',
+        ];
+        if ($replyTo !== null) {
+            $headers[] = "Reply-To: {$replyTo}";
+        }
+        $message = implode("\r\n", $headers) . "\r\n\r\n" . $body;
+        $message = str_replace(["\r\n", "\r"], "\n", $message);
+        $message = preg_replace('/(?m)^\./', '..', $message);
+        fwrite($socket, str_replace("\n", "\r\n", $message) . "\r\n.\r\n");
+        smtp_expect($socket, 250);
+        fwrite($socket, "QUIT\r\n");
+        fclose($socket);
+        return true;
+    } catch (Throwable $e) {
+        error_log('Audit SMTP send failed: ' . $e->getMessage());
+        fclose($socket);
+        return false;
+    }
+}
+
+function smtp_command($socket, string $command, int $expected): void
+{
+    fwrite($socket, $command . "\r\n");
+    smtp_expect($socket, $expected);
+}
+
+function smtp_expect($socket, int $expected): string
+{
+    $response = '';
+    while (($line = fgets($socket, 515)) !== false) {
+        $response .= $line;
+        if (isset($line[3]) && $line[3] === ' ') {
+            break;
+        }
+    }
+    $code = (int) substr($response, 0, 3);
+    if ($code !== $expected) {
+        throw new RuntimeException("SMTP {$code}, expected {$expected}");
+    }
+    return $response;
 }
 
 /* ==================================================================
