@@ -10,3 +10,8 @@ personnelle, commerciale ou opérationnelle non publique.
 Toute information interne de travail (journal, déploiement, décisions,
 diagnostics) appartient au dépôt privé voisin :
 `../notes/projects/site-health-check/`.
+
+## Global security policy
+
+The workspace-level security policy applies to this repository. Keep its
+operational rules centralized; do not create a repository-specific variant.
