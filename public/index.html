@@ -73,7 +73,7 @@
   ]
 }
 </script>
-<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/style.css?v=3">
 <!-- Matomo — instance centrale stat.lajetee.fr, site ID 2 (audit.lajetee.fr) -->
 <script>
   var _paq = window._paq = window._paq || [];
@@ -159,12 +159,15 @@
 
     <div id="piliers" class="piliers"></div>
 
-    <!-- Lock: remaining pillars analysed, detail hidden until email -->
+    <div id="analyse-reveal" class="analyse-reveal" hidden aria-live="polite"></div>
+
+    <!-- The final pillars stay result-free until the email unlock. -->
     <div id="verrou" class="verrou" hidden>
+      <p class="verrou-kicker">Analyse terminée</p>
       <h2>Votre bilan complet est prêt</h2>
       <p>
-        L'analyse est terminée. Indiquez votre e-mail pour afficher, ici même,
-        le détail des trois derniers piliers et votre score global.
+        Nous avons parcouru les quatre piliers. Indiquez votre e-mail pour
+        révéler les deux derniers résultats et votre score global, ici même.
       </p>
       <form id="form-email" novalidate>
         <label class="visuellement-cache" for="email">Votre e-mail</label>
@@ -204,6 +207,6 @@
   </p>
 </footer>
 
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=3"></script>
 </body>
 </html>

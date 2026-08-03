@@ -1,11 +1,10 @@
 /* Site health check — front end
  *
  * Flow:
- *   t0    fire PageSpeed (10-30 s) AND the first scan at the same time
- *   ~1 s  Visibility shows in full, in clear (fast, concrete: the real site)
- *   ~10 s Security shows in full, in clear
- *   ~15 s Maintenance and Performance show: score visible, detail blurred
- *         → the email unlocks the last two and reveals the global score
+ *   t0    start the result-free analysis thread and fire PageSpeed
+ *   during first scans, the two visible pillars fill in as results arrive
+ *         → the last two pillars continue in the same thread, without results
+ *   end   the email unlocks the last two and reveals the global score
  *
  * PageSpeed is the slow link. Firing it at t0 means that by the time the
  * visitor has read Visibility and Security, it is already back: the wait
@@ -20,7 +19,66 @@ const etat = {
   piliers: [],       // { id, titre, question, score, indicateurs, verrouille }
   // (identifiers kept in French to match the API payload keys)
   deverrouille: false,
+  attente: '',
+  revealRun: 0,
+  revealData: {},
 };
+
+const PILIERS_SEQUENCE = [
+  {
+    id: 'visibilite',
+    numero: '01',
+    titre: 'Visibilité',
+    question: 'Google et vos clients vous trouvent-ils ?',
+    verrouille: false,
+    indicateurs: [
+      'Site indexable',
+      'Titre et description',
+      'Fiche établissement',
+      'Aperçu au partage',
+    ],
+  },
+  {
+    id: 'securite',
+    numero: '02',
+    titre: 'Sécurité',
+    question: 'Votre site est-il une porte ouverte ?',
+    verrouille: false,
+    indicateurs: [
+      'Cadenas valide',
+      'Identifiants visibles',
+      'Page de connexion',
+      'Fichiers oubliés',
+      'Sécurité navigation',
+    ],
+  },
+  {
+    id: 'entretien',
+    numero: '03',
+    titre: 'Entretien',
+    question: "Est-ce que quelqu'un s'en occupe ?",
+    verrouille: true,
+    indicateurs: [
+      'Liens et images',
+      'Code à jour',
+      'Dernière mise à jour',
+      'Contenu mixte',
+    ],
+  },
+  {
+    id: 'performance',
+    numero: '04',
+    titre: 'Performance',
+    question: 'Vos visiteurs attendent-ils ?',
+    verrouille: true,
+    indicateurs: [
+      'Score mobile',
+      "Vitesse d'affichage",
+      'Poids de la page',
+      'Images à alléger',
+    ],
+  },
+];
 
 /* ---------- Requests ---------- */
 
@@ -118,11 +176,12 @@ function rendIndicateur(i) {
 
 function rendPilier(p) {
   const verrou = p.verrouille && !etat.deverrouille;
+  const classeNouveau = p.verrouille && etat.deverrouille ? 'pilier-a-revele' : '';
   const score = p.score === null
     ? '<small>non mesuré</small>'
     : `${p.score}<small>/100</small>`;
 
-  return `<section class="pilier ${verrou ? 'pilier-verrouille' : ''}" id="pilier-${p.id}">
+  return `<section class="pilier ${verrou ? 'pilier-verrouille' : ''} ${classeNouveau}" id="pilier-${p.id}">
     <div class="pilier-tete">
       <div>
         <h2>${echappe(p.titre)}</h2>
@@ -136,7 +195,8 @@ function rendPilier(p) {
 }
 
 function peindre() {
-  $('#piliers').innerHTML = etat.piliers.map(rendPilier).join('') + (etat.attente || '');
+  const visibles = etat.deverrouille ? etat.piliers : [];
+  $('#piliers').innerHTML = visibles.map(rendPilier).join('') + (etat.attente || '');
 }
 
 function attendre(texte) {
@@ -144,6 +204,174 @@ function attendre(texte) {
     ? `<div class="attente"><span class="rotor"></span><span>${echappe(texte)}</span></div>`
     : '';
   peindre();
+}
+
+/* ---------- Result-free analysis reveal ---------- */
+
+function rendAnalyseLigne(label, index) {
+  return `<div class="analyse-ligne" data-analyse-ligne="${index}">
+    <span class="analyse-ligne-marque" aria-hidden="true"><span class="analyse-mini-rotor"></span></span>
+    <div class="analyse-ligne-corps">
+      <div class="analyse-ligne-entete">
+        <span class="analyse-ligne-label">${echappe(label)}</span>
+        <span class="analyse-ligne-etat">À suivre</span>
+      </div>
+    </div>
+  </div>`;
+}
+
+function rendAnalysePilier(p) {
+  return `<article class="analyse-pilier" data-analyse-pilier="${p.id}" data-etat="a-venir">
+    <div class="analyse-pilier-attente">
+      <div class="analyse-pilier-tete">
+        <div class="analyse-pilier-numero">${p.numero}</div>
+        <div>
+          <h3>${echappe(p.titre)}</h3>
+          <p>${echappe(p.question)}</p>
+        </div>
+        <span class="analyse-pilier-badge">À venir</span>
+      </div>
+      <div class="analyse-liste">
+        ${p.indicateurs.map(rendAnalyseLigne).join('')}
+      </div>
+    </div>
+    <div class="analyse-pilier-resultat" hidden></div>
+  </article>`;
+}
+
+function afficheAnalyse() {
+  const root = $('#analyse-reveal');
+  root.innerHTML = `<div class="analyse-introduction">
+    <div class="analyse-signal" aria-hidden="true"><span></span></div>
+    <div>
+      <p class="analyse-kicker">Analyse en cours</p>
+      <h2>On déroule les contrôles, un par un</h2>
+      <p id="analyse-statut">Nous commençons par les premiers contrôles.</p>
+    </div>
+  </div>
+  <div class="analyse-piliers">
+    ${PILIERS_SEQUENCE.map(rendAnalysePilier).join('')}
+  </div>
+  <p class="analyse-note">Les deux premiers piliers se révèlent ici avec leurs vrais résultats. Les deux derniers restent réservés jusqu'à la fin.</p>`;
+  root.hidden = false;
+  root.setAttribute('aria-busy', 'true');
+}
+
+function configAnalyse(id) {
+  return PILIERS_SEQUENCE.find((p) => p.id === id);
+}
+
+function carteAnalyse(id) {
+  return document.querySelector(`[data-analyse-pilier="${id}"]`);
+}
+
+function ligneAnalyse(id, index) {
+  return carteAnalyse(id)?.querySelector(`[data-analyse-ligne="${index}"]`);
+}
+
+function statutAnalyse(id, etatLigne) {
+  const ligne = ligneAnalyse(id, etatLigne.index);
+  if (!ligne) return;
+  ligne.dataset.etat = etatLigne.etat;
+  ligne.classList.toggle('est-visible', etatLigne.etat !== 'a-venir');
+  ligne.classList.toggle('est-active', etatLigne.etat === 'en-cours');
+  ligne.classList.toggle('est-terminee', etatLigne.etat === 'terminee');
+  const libelle = ligne.querySelector('.analyse-ligne-etat');
+  if (libelle) {
+    libelle.textContent = etatLigne.etat === 'en-cours'
+      ? 'Réflexion…'
+      : etatLigne.etat === 'terminee' ? 'Contrôle parcouru' : 'À suivre';
+  }
+}
+
+function statutCarteAnalyse(id, etatCarte) {
+  const carte = carteAnalyse(id);
+  if (!carte) return;
+  const config = configAnalyse(id);
+  carte.dataset.etat = etatCarte;
+  const badge = carte.querySelector('.analyse-pilier-attente .analyse-pilier-badge');
+  if (badge) {
+    badge.textContent = etatCarte === 'en-cours'
+      ? 'En cours'
+      : etatCarte === 'terminee'
+        ? config?.verrouille ? 'Résultats réservés' : 'Contrôles parcourus'
+        : 'À venir';
+  }
+}
+
+function reveleResultatAnalyse(id) {
+  const carte = carteAnalyse(id);
+  const config = configAnalyse(id);
+  const resultat = etat.revealData[id];
+  if (!carte || !config || config.verrouille || !resultat) return;
+  if (carte.dataset.sequenceTerminee !== 'true') return;
+
+  const attente = carte.querySelector('.analyse-pilier-attente');
+  const resultatZone = carte.querySelector('.analyse-pilier-resultat');
+  if (!resultatZone || resultatZone.dataset.affiche === 'true') return;
+
+  if (attente) attente.hidden = true;
+  resultatZone.innerHTML = rendPilier({ ...resultat, verrouille: false });
+  resultatZone.dataset.affiche = 'true';
+  resultatZone.hidden = false;
+  carte.dataset.etat = 'revelee';
+}
+
+function actualiseCarteAnalyse(id) {
+  const carte = carteAnalyse(id);
+  if (!carte) return;
+  const sequenceTerminee = carte.dataset.sequenceTerminee === 'true';
+  if (!sequenceTerminee) return;
+  statutCarteAnalyse(id, 'terminee');
+  reveleResultatAnalyse(id);
+}
+
+function suitPilierAnalyse(id, reduit) {
+  carteAnalyse(id)?.scrollIntoView({
+    behavior: reduit ? 'auto' : 'smooth',
+    block: 'start',
+  });
+}
+
+function pauseAnalyse(duree) {
+  return new Promise((resolve) => setTimeout(resolve, duree));
+}
+
+async function animeAnalyse(run) {
+  const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dureeEtape = reduit ? 180 : 420;
+  const pauseEntreLignes = reduit ? 15 : 80;
+
+  for (const pilier of PILIERS_SEQUENCE) {
+    if (run !== etat.revealRun) return;
+    suitPilierAnalyse(pilier.id, reduit);
+    statutCarteAnalyse(pilier.id, 'en-cours');
+    const statut = $('#analyse-statut');
+    if (statut) statut.textContent = `Nous parcourons les contrôles du pilier « ${pilier.titre} ».`;
+
+    for (let index = 0; index < pilier.indicateurs.length; index += 1) {
+      if (run !== etat.revealRun) return;
+      statutAnalyse(pilier.id, { index, etat: 'en-cours' });
+      await pauseAnalyse(dureeEtape);
+      if (run !== etat.revealRun) return;
+      statutAnalyse(pilier.id, { index, etat: 'terminee' });
+      await pauseAnalyse(pauseEntreLignes);
+    }
+
+    const carte = carteAnalyse(pilier.id);
+    if (carte) carte.dataset.sequenceTerminee = 'true';
+    actualiseCarteAnalyse(pilier.id);
+    if (pilier !== PILIERS_SEQUENCE.at(-1)) {
+      await pauseAnalyse(reduit ? 60 : 850);
+      if (run !== etat.revealRun) return;
+    }
+  }
+
+  if (run === etat.revealRun) {
+    const statut = $('#analyse-statut');
+    if (statut) statut.textContent = 'Les contrôles sont parcourus. Nous préparons votre bilan complet.';
+    $('#analyse-reveal').setAttribute('aria-busy', 'false');
+  }
 }
 
 /* ---------- Global score ---------- */
@@ -185,45 +413,64 @@ $('#form').addEventListener('submit', async (e) => {
   if (apercu) apercu.hidden = true;
   etat.piliers = [];
   etat.deverrouille = false;
+  etat.attente = '';
+  etat.revealData = {};
+  etat.revealRun += 1;
   etat.url = url;
   $('#global').hidden = true;
   $('#verrou').hidden = true;
+  $('#analyse-reveal').hidden = true;
+  $('#analyse-reveal').innerHTML = '';
+  $('#site-url').textContent = 'Analyse en cours…';
+  $('#badge-wp').hidden = true;
+  peindre();
 
   // PageSpeed starts now, in the background. We do not await it here.
   const pagespeed = post('pagespeed.php', { url }).catch(() => null);
-
-  attendre('Nous consultons votre site…');
+  afficheAnalyse();
+  const revealRun = etat.revealRun;
+  const revealSequence = animeAnalyse(revealRun);
+  $('#analyse-reveal').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   try {
-    // Visibility first: fast and concrete (their real site, the previews),
-    // it fills the wait while Security runs its probes.
+    // The analysis thread starts immediately. The first two responses fill
+    // their results as soon as they arrive; the last two stay result-free.
     const visi = await post('scan.php', { url, groupe: 'visibilite' });
     $('#site-url').textContent = visi.url;
     $('#badge-wp').hidden = !visi.wordpress;
     etat.piliers.push(...visi.piliers.map((p) => ({ ...p, verrouille: false })));
-    attendre('Nous passons votre sécurité au crible…');
+    etat.revealData.visibilite = visi.piliers[0] || null;
+    peindre();
+    actualiseCarteAnalyse('visibilite');
 
     const secu = await post('scan.php', { url, groupe: 'securite' });
     etat.piliers.push(...secu.piliers.map((p) => ({ ...p, verrouille: false })));
-    attendre('Encore un instant, nous finissons le diagnostic…');
+    etat.revealData.securite = secu.piliers[0] || null;
+    peindre();
+    actualiseCarteAnalyse('securite');
 
-    // Maintenance and Performance: analysed, but detail reserved for the report.
-    const entretien = await post('scan.php', { url, groupe: 'entretien' });
+    // The last two pillars are analysed while their controls are staged.
+    const entretienPromise = post('scan.php', { url, groupe: 'entretien' });
+
+    const [entretien, perf] = await Promise.all([entretienPromise, pagespeed]);
     etat.piliers.push(...entretien.piliers.map((p) => ({ ...p, verrouille: true })));
+    etat.revealData.entretien = entretien.piliers[0] || null;
+    actualiseCarteAnalyse('entretien');
 
-    const perf = await pagespeed;
     if (perf && perf.piliers) {
       etat.piliers.push(...perf.piliers.map((p) => ({ ...p, verrouille: true })));
     }
+    etat.revealData.performance = perf?.piliers?.[0] || null;
+    actualiseCarteAnalyse('performance');
 
-    attendre(null);
+    await revealSequence;
+    const statutAnalyseFinal = $('#analyse-statut');
+    if (statutAnalyseFinal) statutAnalyseFinal.textContent = 'Les contrôles sont parcourus. Nous préparons votre bilan complet.';
     $('#verrou').hidden = false;
-    // Ease down to the first masked pillar (the teaser), not straight to the
-    // email form — the visitor sees "there's more, blurred" and arrives gently.
-    const premierMasque = document.querySelector('.pilier-verrouille');
-    (premierMasque || $('#verrou')).scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
+    etat.revealRun += 1;
     attendre(null);
+    $('#analyse-reveal').hidden = true;
     $('#erreur').textContent = err.message;
     $('#erreur').hidden = false;
   } finally {
@@ -254,20 +501,15 @@ $('#form-email').addEventListener('submit', async (e) => {
     await post('lead.php', { email, url: etat.url, consent, resultats, score: scoreGlobal() });
     etat.deverrouille = true;
 
-    // Reveal WITHOUT re-rendering, so the un-blur animates (CSS transition),
-    // and flash the freshly revealed pillars so the unlock is felt.
-    const revele = [...document.querySelectorAll('.pilier-verrouille')];
-    revele.forEach((el) => {
-      el.classList.remove('pilier-verrouille');
-      el.classList.add('revele');
-      el.querySelector('.voile')?.classList.add('fondu');
-    });
-    setTimeout(() => document.querySelectorAll('.voile').forEach((v) => v.remove()), 550);
-
     $('#verrou').hidden = true;
+    $('#analyse-reveal').hidden = true;
+    $('#analyse-reveal').innerHTML = '';
+    peindre();
+    const revele = [...document.querySelectorAll('.pilier-a-revele')];
+    revele.forEach((el) => el.classList.add('revele'));
+    setTimeout(() => document.querySelectorAll('.pilier-a-revele').forEach((el) => el.classList.remove('pilier-a-revele', 'revele')), 1450);
+
     afficheGlobal();
-    // Move attention UP to the freshly revealed content — fixes "the view
-    // stayed on the email box, I didn't realise everything had appeared".
     (revele[0] || $('#global')).scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (err) {
     $('#erreur-email').textContent = err.message;
